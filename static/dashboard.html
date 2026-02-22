@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Bank Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eef2f3; margin: 20px; text-align: center; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); display: inline-block; width: 90%; max-width: 700px; margin-bottom: 20px; }
+        .transfer-section { background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #ddd; display: none; } /* Pehle hidden rahega */
+        input { padding: 10px; margin: 5px; border: 1px solid #ccc; border-radius: 4px; width: 40%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #343a40; color: white; }
+        .balance-box { font-size: 26px; color: #28a745; margin: 15px 0; font-weight: bold; display: none; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
+        .btn-logout { background: #dc3545; display: none; }
+        .btn-transfer { background: #17a2b8; }
+        .statement-section { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>🏦 Online Bank Dashboard</h2>
+    
+    <div id="loginSection">
+        <input type="email" id="userEmail" placeholder="Enter Email">
+        <input type="password" id="userPassword" placeholder="Enter Password">
+        <br>
+        <button onclick="handleLogin()">Login</button>
+        
+        <p id="regLink" style="margin-top: 15px;">
+            New user? <a href="register.html" style="color: #007bff; text-decoration: none; font-weight: bold;">Register here</a>
+        </p>
+    </div>
+
+    <div id="userInfo" style="display:none;">
+        <p id="welcomeNote" style="font-weight: bold;"></p>
+        <div class="balance-box" id="balanceDisplay">Balance: ₹0.00</div>
+        <button class="btn-logout" id="logoutBtn" onclick="handleLogout()">Logout</button>
+    </div>
+
+    <hr>
+
+    <div class="transfer-section" id="transferSection">
+        <h3>💸 Send Money</h3>
+        <input type="email" id="toEmail" placeholder="Receiver's Email">
+        <input type="number" id="amount" placeholder="Amount (₹)">
+        <br>
+        <button class="btn-transfer" onclick="handleTransfer()">Transfer Now</button>
+    </div>
+
+    <div class="statement-section" id="statementSection">
+        <h3>📜 Mini Statement</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Details</th>
+                    <th>Amount</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody id="transactionTable"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // 1. Login Function with Password Check
+    async function handleLogin() {
+        const email = document.getElementById('userEmail').value;
+        const pass = document.getElementById('userPassword').value;
+
+        if(!email || !pass) { alert("Please enter both email and password!"); return; }
+
+        const response = await fetch(`/api/login?email=${email}&password=${pass}`);
+        const result = await response.text();
+
+        if (result.includes("Success")) {
+        	document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('userInfo').style.display = 'block';
+            document.getElementById('balanceDisplay').style.display = 'block';
+            document.getElementById('transferSection').style.display = 'block';
+            document.getElementById('statementSection').style.display = 'block';
+            document.getElementById('logoutBtn').style.display = 'inline-block';
+            document.getElementById('welcomeNote').innerText = result;
+            
+            loadDashboardData(email);
+        } else {
+            alert("Login Failed! Please check your credentials.");
+        }
+    }
+
+    // 2. Fetch Data (Balance + Statement)
+    async function loadDashboardData(email) {
+        // Fetch Balance
+        const balRes = await fetch(`/api/balance?email=${email}`);
+        const balText = await balRes.text();
+        document.getElementById('balanceDisplay').innerText = balText;
+
+        // Fetch Transactions
+        const transRes = await fetch(`/api/statement?email=${email}`);
+        const transactions = await transRes.json();
+        
+        const tableBody = document.getElementById('transactionTable');
+        tableBody.innerHTML = ""; 
+
+        transactions.forEach(t => {
+            const isSender = t.senderEmail === email;
+            const type = isSender ? "🔴 Sent" : "🟢 Received";
+            const details = isSender ? `To: ${t.receiverEmail}` : `From: ${t.senderEmail}`;
+            
+            const row = `<tr>
+                <td style="font-weight:bold; color:${isSender ? 'red' : 'green'}">${type}</td>
+                <td>${details}</td>
+                <td>₹${t.amount}</td>
+                <td>${new Date(t.timestamp).toLocaleString()}</td>
+            </tr>`;
+            tableBody.innerHTML += row;
+        });
+    }
+
+    // 3. Money Transfer
+    async function handleTransfer() {
+        const fromEmail = document.getElementById('userEmail').value;
+        const toEmail = document.getElementById('toEmail').value;
+        const amount = document.getElementById('amount').value;
+
+        const response = await fetch(`/api/transfer?fromEmail=${fromEmail}&toEmail=${toEmail}&amount=${amount}`);
+        const result = await response.text();
+        
+        alert(result);
+        loadDashboardData(fromEmail);
+    }
+
+    // 4. Logout Function
+    function handleLogout() {
+        location.reload(); // Page refresh karte hi session khatam
+    }
+</script>
+
+</body>
+</html>	
